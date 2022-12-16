@@ -1,10 +1,9 @@
 package db
 
 import (
+	"encoding/json"
 	"log"
 	"os"
-
-	"encoding/json"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/jmoiron/sqlx/types"
@@ -12,12 +11,12 @@ import (
 )
 
 type BleMeshConfigurationHTTP struct {
-	ID     string
-	Config json.RawMessage
+	ID     int             `json:"id"`
+	Config json.RawMessage `json:"config"`
 }
 type BleMeshConfigurationDB struct {
-	ID     int            `db:"id"`
-	Config types.JSONText `db:"config"`
+	ID     int            `db:"id" json:"id"`
+	Config types.JSONText `db:"config" json:"config"`
 }
 
 var db *sqlx.DB
@@ -31,19 +30,28 @@ func Connect() {
 }
 
 func UpdateConfiguration(config *BleMeshConfigurationDB) {
-	_, err := db.NamedExec(`UPDATE mesh_configuration SET config=:config WHERE id=:id`,
+	res, err := db.NamedExec(`UPDATE mesh_configuration SET config=:config WHERE id=:id`,
 		map[string]interface{}{
 			"config": config.Config,
 			"id":     config.ID,
 		})
 
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("configuration update error: ", err)
+	}
+
+	n, err := res.RowsAffected()
+	if err != nil {
+		log.Fatal("get rows affected error: ", err)
+	}
+
+	if n == 0 {
+		log.Fatal("configuration update error: ", err)
 	}
 }
 
 func GetConfiguration(id int, resultConfig *BleMeshConfigurationDB) {
-	err := db.Get(&resultConfig.Config, "SELECT config FROM mesh_configuration WHERE id=$1", id)
+	err := db.Get(resultConfig, "SELECT * FROM mesh_configuration WHERE id=$1", id)
 
 	if err != nil {
 		log.Fatal(err)
