@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/Ivanf1/esp-ble-mesh-sync-service/pkg/db"
 	"github.com/jmoiron/sqlx/types"
@@ -39,19 +40,27 @@ func (s *Server) configurationRouter(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleGetConfiguration(w http.ResponseWriter, r *http.Request) {
 	log.Println("GET configuration")
 
-	httpData := db.BleMeshConfigurationHTTP{}
-	body, _ := ioutil.ReadAll(r.Body)
-	json.Unmarshal(body, &httpData)
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		log.Println("error: no id provided")
+		return
+	}
+
+	idInt, err := strconv.Atoi(id)
+	if err != nil {
+		log.Println("id conversion error: ", err)
+	}
 
 	result := db.BleMeshConfigurationDB{}
 
-	db.GetConfiguration(httpData.ID, &result)
+	db.GetConfiguration(idInt, &result)
 
 	j, err := json.Marshal(result)
 	if err != nil {
 		log.Fatal("json marshal error: ", err)
 	}
 
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.WriteHeader(http.StatusOK)
 	w.Write(j)
 }
